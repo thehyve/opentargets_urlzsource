@@ -7,8 +7,9 @@ from zipfile import ZipFile
 import tempfile
 import logging
 from io import TextIOWrapper
+import warnings
 
-import requests 
+import requests
 import requests_file
 
 def urllify(string_name):
@@ -39,7 +40,7 @@ class URLZSource(object):
         self.kwargs = kwargs
 
     @contextmanager
-    def _open_local(self, filename, mode):
+    def _open_local(self, filename):
         """
         This is an internal function to handle opening the temporary file 
         that the URL has been downloaded to, including handling compression
@@ -74,11 +75,12 @@ class URLZSource(object):
             yield fd
 
     @contextmanager
-    def open(self, mode='r'):
-        """
-        This downloads the URL to a temporary file, naming the file
-        based on the URL. 
-        """
+    def open(self, mode=None):
+        """Open the file for reading, buffering to a tempfile if needed."""
+        if mode is not None:
+            warnings.warn(
+                'Note that URLZSource.open() ignores its mode= arg',
+                DeprecationWarning)
 
         if self.filename.startswith('ftp://'):
             raise NotImplementedError('finish ftp')
@@ -86,7 +88,7 @@ class URLZSource(object):
         elif self.filename.startswith('file://'):
             #if its already a file, we can handle it directly
             file_to_open = self.filename[7:]
-            with self._open_local(file_to_open, mode) as fd:
+            with self._open_local(file_to_open) as fd:
                 yield fd
         else:
             file_to_open = None
@@ -113,5 +115,5 @@ class URLZSource(object):
                     for block in f.iter_content(1024):
                         fd.write(block)
 
-            with self._open_local(file_to_open, mode) as fd:
+            with self._open_local(file_to_open) as fd:
                 yield fd
