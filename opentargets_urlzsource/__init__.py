@@ -51,30 +51,24 @@ class URLZSource(object):
         open_f = None
 
         if filename.endswith('.gz') or filename.endswith('.gzip'):
-            open_f = functools.partial(gzip.open, mode='rt')
+            open_f = functools.partial(gzip.open, filename, mode='rb')
 
         elif filename.endswith('.zip'):
             zipped_data = ZipFile(filename)
-            
-            if len(zipped_data.filelist) > 1:
+
+            if len(zipped_data.infolist()) > 1:
                 raise IOError("more than one file in "+file)
-            if len(zipped_data.filelist) == 0:
+            if len(zipped_data.infolist()) == 0:
                 raise IOError("no file in "+file)
 
-            #get the filename of the single file inside the zip
-            info = zipped_data.getinfo(zipped_data.filelist[0].orig_filename)
-            filename = info
-
-            def open_internal(filename, zipped_data):
-                return TextIOWrapper(zipped_data.open(filename))
-
-            open_f = functools.partial(open_internal, zipped_data=zipped_data)
-
+            # get a reference to the single file inside the zip
+            info = zipped_data.infolist()[0]
+            open_f = functools.partial(zipped_data.open, info)
         else:
-            open_f = functools.partial(open, mode='r')
+            open_f = functools.partial(open, filename, mode='rb')
 
-        with open_f(filename) as fd:
-            yield fd
+        with open_f() as fd:
+            yield TextIOWrapper(fd)
 
     @contextmanager
     def open(self, mode=None):
